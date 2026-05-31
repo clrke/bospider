@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://clrke.github.io/bospider/sitemap.xml
