@@ -63,12 +63,16 @@
       touch-action: none;   /* capture swipes; don't scroll the page */
     }
 
-    .col-guide {
+    /* Vertical column rails — the 10px strands the spider descends */
+    .col-track {
       position: absolute;
       top: 0;
       bottom: 0;
-      width: 1px;
-      background: #1a1a2e;
+      width: 10px;
+      background: #1c1c33;
+      border-radius: 5px;
+      transform: translateX(-50%);   /* centered on the column center */
+      pointer-events: none;
     }
 
     .col-selector {
@@ -539,6 +543,12 @@ muteBtn.addEventListener('click', () => {
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 for (let c = 0; c < COLS; c++) {
+  // 10px vertical rail centered on the column (prepended so bars/spider sit on top).
+  const track = document.createElement('div');
+  track.className = 'col-track';
+  track.style.left = colX(c) + 'px';
+  arena.prepend(track);
+
   const lbl = document.createElement('div');
   lbl.className = 'col-label';
   lbl.style.left = (c * COL_W) + 'px';
