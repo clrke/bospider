@@ -2,8 +2,19 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Bospider</title>
+
+  <!-- SEO / social -->
+  <meta name="description" content="Bospider — a fast-paced reflex game inspired by the Bospider boss from Mega Man X. Read the board, pick the safe column, survive faster and faster." />
+  <meta name="theme-color" content="#0a0a0f" />
+  <meta property="og:title" content="Bospider" />
+  <meta property="og:description" content="Read the board, pick the safe column, survive — round after round, faster and faster." />
+  <meta property="og:type" content="website" />
+
+  <!-- Emoji favicon (no external asset) -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%95%B7%3C/text%3E%3C/svg%3E" />
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -16,7 +27,12 @@
       align-items: center;
       justify-content: center;
       min-height: 100vh;
+      min-height: 100dvh;
       user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      padding: 12px;
+      touch-action: manipulation;
     }
 
     h1 {
@@ -32,6 +48,7 @@
       color: #666;
       margin-bottom: 20px;
       letter-spacing: 0.05em;
+      text-align: center;
     }
 
     #arena {
@@ -42,9 +59,9 @@
       border: 2px solid #222;
       border-radius: 4px;
       overflow: hidden;
+      cursor: pointer;
     }
 
-    /* Column guides (subtle) */
     .col-guide {
       position: absolute;
       top: 0;
@@ -53,7 +70,6 @@
       background: #1a1a2e;
     }
 
-    /* Column selector highlight */
     .col-selector {
       position: absolute;
       top: 0;
@@ -69,17 +85,15 @@
     .col-selector.safe  { background: rgba(100, 255, 100, 0.07); border-color: rgba(100,255,100,0.25); }
     .col-selector.danger{ background: rgba(255,  60,  60, 0.07); border-color: rgba(255,60,60,0.25); }
 
-    /* Horizontal bars */
     .bar {
       position: absolute;
       height: 6px;
-      width: 80px; /* spans one gap = col width */
+      width: 80px;
       background: #4488ff;
       border-radius: 3px;
       box-shadow: 0 0 8px #4488ff88;
     }
 
-    /* Spider */
     #spider {
       position: absolute;
       width: 36px;
@@ -93,7 +107,6 @@
       filter: drop-shadow(0 0 6px #ff4444);
     }
 
-    /* Column labels at bottom */
     .col-label {
       position: absolute;
       bottom: 6px;
@@ -103,16 +116,47 @@
       width: 80px;
     }
 
+    /* Overlay (start / game over) */
+    #overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(8, 8, 14, 0.92);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      z-index: 50;
+      padding: 20px;
+      gap: 10px;
+    }
+    #overlay.hidden { display: none; }
+    #overlay .big { font-size: 1.6rem; color: #ff4444; letter-spacing: 0.15em; text-transform: uppercase; }
+    #overlay .sub { font-size: 0.8rem; color: #aaa; line-height: 1.6; }
+    #overlay .scores { font-size: 0.9rem; color: #ffcc00; margin: 6px 0; }
+    #overlay .cta {
+      margin-top: 12px;
+      font-size: 0.85rem;
+      color: #66ff66;
+      letter-spacing: 0.08em;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+
     #hud {
       margin-top: 16px;
       display: flex;
-      gap: 32px;
+      gap: 28px;
       align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
     }
 
     .stat { text-align: center; }
-    .stat .val { font-size: 1.5rem; color: #ffcc00; font-weight: bold; }
-    .stat .lbl { font-size: 0.65rem; color: #555; text-transform: uppercase; letter-spacing: 0.1em; }
+    .stat .val { font-size: 1.4rem; color: #ffcc00; font-weight: bold; }
+    .stat .lbl { font-size: 0.6rem; color: #555; text-transform: uppercase; letter-spacing: 0.1em; }
+
+    #lives { font-size: 1.1rem; letter-spacing: 2px; min-height: 1.2em; }
 
     #message {
       margin-top: 14px;
@@ -122,17 +166,11 @@
       min-height: 1.2em;
       text-align: center;
     }
-
     #message.correct { color: #66ff66; }
     #message.wrong   { color: #ff4444; }
     #message.hint    { color: #ffcc00; }
 
-    #streak-bar {
-      margin-top: 8px;
-      display: flex;
-      gap: 4px;
-    }
-
+    #streak-bar { margin-top: 8px; display: flex; gap: 4px; }
     .streak-dot {
       width: 8px; height: 8px;
       border-radius: 50%;
@@ -141,31 +179,48 @@
       transition: background 0.2s;
     }
     .streak-dot.on { background: #ffcc00; border-color: #ffcc00; }
+
+    #mute {
+      position: fixed;
+      top: 10px; right: 12px;
+      background: none; border: 1px solid #333; color: #888;
+      font-family: inherit; font-size: 0.7rem;
+      padding: 4px 8px; border-radius: 4px; cursor: pointer;
+    }
   </style>
 </head>
 <body>
 
-<h1>⛧ Bospider</h1>
-<div id="info">← → select column &nbsp;|&nbsp; SPACE skip wait</div>
+<button id="mute" aria-label="Toggle sound">🔊 ON</button>
 
-<div id="arena">
+<h1>⛧ Bospider</h1>
+<div id="info">← → select column &nbsp;|&nbsp; SPACE skip wait &nbsp;|&nbsp; tap a column on mobile</div>
+
+<div id="arena" role="application" aria-label="Bospider game board">
   <div class="col-selector" id="selector"></div>
   <!-- bars injected here -->
-  <div id="spider">🕷</div>
-  <!-- col labels -->
+  <div id="spider" aria-hidden="true">🕷</div>
+  <!-- col labels injected -->
+  <div id="overlay">
+    <div class="big" id="ov-title">⛧ Bospider</div>
+    <div class="sub" id="ov-sub">Read the board. Pick the column where<br>the spider lands. Survive, round after round.</div>
+    <div class="scores" id="ov-scores"></div>
+    <div class="cta" id="ov-cta">Press SPACE or TAP to start</div>
+  </div>
 </div>
+
+<div id="lives" aria-label="Lives remaining">❤️ ❤️ ❤️</div>
 
 <div id="hud">
   <div class="stat"><div class="val" id="round-val">1</div><div class="lbl">Round</div></div>
   <div class="stat"><div class="val" id="score-val">0</div><div class="lbl">Score</div></div>
+  <div class="stat"><div class="val" id="best-val">0</div><div class="lbl">Best</div></div>
   <div class="stat"><div class="val" id="speed-val">—</div><div class="lbl">Speed</div></div>
 </div>
 
-<div id="message">Choose your column!</div>
+<div id="message" role="status" aria-live="polite">Press start to play</div>
 
-<div id="streak-bar">
-  <!-- dots injected -->
-</div>
+<div id="streak-bar" aria-hidden="true"></div>
 
 <script>
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -178,48 +233,90 @@ const PAUSE_MS    = 2000;  // pre-movement pause
 const BASE_MS     = 3000;  // travel time at round 1
 const MIN_MS      = 400;   // floor travel time
 const STREAK_MAX  = 5;
+const START_LIVES = 3;
+const HS_KEY      = 'bospider_highscore';
 
 // ─── State ───────────────────────────────────────────────────────────────────
-let round         = 1;
-let score         = 0;
-let streak        = 0;
-let selectedCol   = 0;   // 0-indexed
-let spiderCol     = 0;
-let spiderY       = 0;   // px from top
-let bars          = [];  // [{row, gap}]  gap = 0-2 (between cols 0-1, 1-2, 2-3)
-let phase         = 'choose';  // choose | pause | moving | result
+let round, score, streak, lives, selectedCol, spawnCol;
+let bars          = [];        // [{row, gap}]
+let phase         = 'start';   // start | choose | moving | result | gameover
 let animId        = null;
-let roundStarted  = false;
 let lastTs        = null;
 let travelMs      = BASE_MS;
-let totalRows     = 0;   // rows traversed so far this round
-let rowProgress   = 0;   // 0..1 progress within current row
-let skipped       = false;
+let elapsed       = 0;         // ms into descent
+let path          = [];        // [{x,y}] waypoints
+let segLen        = [];        // cumulative length up to each point
+let totalLen      = 0;
+let safeCol       = 0;
+let pauseTimer    = null;
+let resultTimer   = null;
+let highScore     = 0;
+let muted         = false;
 
 // ─── DOM refs ────────────────────────────────────────────────────────────────
-const arena      = document.getElementById('arena');
-const spiderEl   = document.getElementById('spider');
-const selector   = document.getElementById('selector');
-const roundVal   = document.getElementById('round-val');
-const scoreVal   = document.getElementById('score-val');
-const speedVal   = document.getElementById('speed-val');
-const messageEl  = document.getElementById('message');
-const streakBar  = document.getElementById('streak-bar');
+const arena     = document.getElementById('arena');
+const spiderEl  = document.getElementById('spider');
+const selector  = document.getElementById('selector');
+const roundVal  = document.getElementById('round-val');
+const scoreVal  = document.getElementById('score-val');
+const bestVal   = document.getElementById('best-val');
+const speedVal  = document.getElementById('speed-val');
+const messageEl = document.getElementById('message');
+const streakBar = document.getElementById('streak-bar');
+const livesEl   = document.getElementById('lives');
+const overlay   = document.getElementById('overlay');
+const ovTitle   = document.getElementById('ov-title');
+const ovSub     = document.getElementById('ov-sub');
+const ovScores  = document.getElementById('ov-scores');
+const ovCta     = document.getElementById('ov-cta');
+const muteBtn   = document.getElementById('mute');
+
+// ─── Audio (WebAudio, lazy) ────────────────────────────────────────────────────
+let audioCtx = null;
+function ensureAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch (e) { audioCtx = null; }
+  }
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+function beep(freq, dur, type = 'square', vol = 0.08) {
+  if (muted || !audioCtx) return;
+  const t = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t);
+  gain.gain.setValueAtTime(vol, t);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(t); osc.stop(t + dur);
+}
+function sfxStep()  { beep(220, 0.05, 'square', 0.04); }
+function sfxWin()   { beep(660, 0.09, 'triangle', 0.09); setTimeout(() => beep(990, 0.12, 'triangle', 0.09), 90); }
+function sfxLose()  { beep(140, 0.25, 'sawtooth', 0.10); }
+function sfxOver()  { beep(200, 0.2, 'sawtooth', 0.1); setTimeout(() => beep(120, 0.4, 'sawtooth', 0.1), 160); }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-function colX(c) { return c * COL_W + COL_W / 2; }   // center px
+function colX(c) { return c * COL_W + COL_W / 2; }
 
 function travelMsForRound(r) {
-  // Logarithmic reduction: t(r) = BASE / log2(r + 1) + MIN
   const t = BASE_MS / Math.log2(r + 1) + MIN_MS;
   return Math.max(MIN_MS, t);
 }
+function rowsPerSecond() { return ROWS / (travelMs / 1000); }
 
-function rowsPerSecond() {
-  return ROWS / (travelMs / 1000);
+function loadHighScore() {
+  try { highScore = parseInt(localStorage.getItem(HS_KEY), 10) || 0; }
+  catch (e) { highScore = 0; }
+}
+function saveHighScore() {
+  if (score > highScore) {
+    highScore = score;
+    try { localStorage.setItem(HS_KEY, String(highScore)); } catch (e) {}
+  }
 }
 
-// ─── Setup streak display ─────────────────────────────────────────────────────
 function buildStreakBar() {
   streakBar.innerHTML = '';
   for (let i = 0; i < STREAK_MAX; i++) {
@@ -228,130 +325,147 @@ function buildStreakBar() {
     streakBar.appendChild(d);
   }
 }
+function renderLives() {
+  livesEl.textContent = '❤️ '.repeat(lives).trim() || '—';
+  livesEl.setAttribute('aria-label', lives + ' lives remaining');
+}
 
-// ─── Generate round ──────────────────────────────────────────────────────────
+// ─── Build round: bars, spider path (with lateral tracing) ─────────────────────
 function generateRound() {
-  // Clear old bars
   arena.querySelectorAll('.bar').forEach(b => b.remove());
   bars = [];
 
-  // Spawn spider at random column top
-  spiderCol = Math.floor(Math.random() * COLS);
-  spiderY   = 0;
-  rowProgress = 0;
-  totalRows   = 0;
+  spawnCol = Math.floor(Math.random() * COLS);
 
-  // For each row, place a bar in one of the 3 gaps
-  // Bar at gap g connects col g and col g+1
   for (let row = 0; row < ROWS; row++) {
-    const gap = Math.floor(Math.random() * (COLS - 1));
+    const gap = Math.floor(Math.random() * (COLS - 1)); // gap g connects col g & g+1
     bars.push({ row, gap });
 
     const barEl = document.createElement('div');
     barEl.className = 'bar';
-    barEl.style.left  = (gap * COL_W + COL_W) + 'px';  // right edge of col gap
-    barEl.style.top   = (row * ROW_H + ROW_H / 2 - 3) + 'px';
+    barEl.style.left = (gap * COL_W + COL_W) + 'px';
+    barEl.style.top  = (row * ROW_H + ROW_H / 2 - 3) + 'px';
     arena.appendChild(barEl);
   }
 
-  // Compute safe column(s)
-  // Simulate spider path
-  let col = spiderCol;
+  // Build the actual traced polyline path the spider follows.
+  let col = spawnCol;
+  path = [{ x: colX(col), y: 0 }];
   for (let row = 0; row < ROWS; row++) {
+    const barY = row * ROW_H + ROW_H / 2;
     const { gap } = bars[row];
-    if (col === gap)     col = gap + 1;
-    else if (col === gap + 1) col = gap;
+    // descend to the bar's height in current column
+    path.push({ x: colX(col), y: barY });
+    // if adjacent to this row's bar, trace across to the other column
+    if (col === gap)            { col = gap + 1; path.push({ x: colX(col), y: barY }); }
+    else if (col === gap + 1)   { col = gap;     path.push({ x: colX(col), y: barY }); }
   }
-  // col is now the landing column
-  window._safeCol = col;  // store for result check
+  path.push({ x: colX(col), y: ARENA_H });   // final descent to the floor
+  safeCol = col;
+
+  // Cumulative arc-length parametrization
+  segLen = [0];
+  totalLen = 0;
+  for (let i = 1; i < path.length; i++) {
+    const dx = path[i].x - path[i - 1].x;
+    const dy = path[i].y - path[i - 1].y;
+    totalLen += Math.hypot(dx, dy);
+    segLen.push(totalLen);
+  }
 }
 
-// ─── Render spider position ──────────────────────────────────────────────────
-function renderSpider() {
-  spiderEl.style.left = colX(spiderCol) + 'px';
-  spiderEl.style.top  = (spiderY - 18) + 'px';
+function pointAtDistance(d) {
+  if (d <= 0) return path[0];
+  if (d >= totalLen) return path[path.length - 1];
+  let i = 1;
+  while (i < segLen.length && segLen[i] < d) i++;
+  const t = (d - segLen[i - 1]) / (segLen[i] - segLen[i - 1] || 1);
+  return {
+    x: path[i - 1].x + (path[i].x - path[i - 1].x) * t,
+    y: path[i - 1].y + (path[i].y - path[i - 1].y) * t,
+  };
 }
 
+// ─── Render ────────────────────────────────────────────────────────────────────
+function renderSpiderAt(x, y) {
+  spiderEl.style.left = x + 'px';
+  spiderEl.style.top  = (y - 18) + 'px';
+}
 function renderSelector() {
   selector.style.left = (selectedCol * COL_W) + 'px';
-  const safe = window._safeCol;
   if (phase === 'result') {
-    selector.className = 'col-selector ' + (selectedCol === safe ? 'safe' : 'danger');
+    selector.className = 'col-selector ' + (selectedCol === safeCol ? 'safe' : 'danger');
   } else {
     selector.className = 'col-selector';
   }
 }
-
 function updateHud() {
   roundVal.textContent = round;
   scoreVal.textContent = score;
-  const rps = (rowsPerSecond()).toFixed(1);
-  speedVal.textContent = rps + '/s';
+  bestVal.textContent  = Math.max(highScore, score);
+  speedVal.textContent = rowsPerSecond().toFixed(1) + '/s';
   buildStreakBar();
+  renderLives();
+}
+function setMessage(text, cls) {
+  messageEl.textContent = text;
+  messageEl.className = cls || '';
 }
 
-// ─── Phases ──────────────────────────────────────────────────────────────────
+// ─── Game flow ──────────────────────────────────────────────────────────────────
+function startGame() {
+  ensureAudio();
+  round = 1; score = 0; streak = 0; lives = START_LIVES;
+  selectedCol = 0;
+  overlay.classList.add('hidden');
+  startRound();
+}
+
 function startRound() {
+  clearTimeout(pauseTimer);
   phase = 'choose';
-  skipped = false;
   travelMs = travelMsForRound(round);
+  elapsed = 0;
   generateRound();
-  renderSpider();
+  renderSpiderAt(path[0].x, path[0].y);
   renderSelector();
   updateHud();
   setMessage('Choose your column!', '');
-
-  // After 2s pause, start moving
-  setTimeout(() => {
-    if (phase === 'choose') beginMoving();
-  }, PAUSE_MS);
+  pauseTimer = setTimeout(() => { if (phase === 'choose') beginMoving(); }, PAUSE_MS);
 }
 
 function beginMoving() {
-  phase   = 'moving';
-  lastTs  = null;
+  clearTimeout(pauseTimer);
+  phase = 'moving';
+  lastTs = null;
+  elapsed = 0;
   setMessage('↓ descending…', 'hint');
-  animId  = requestAnimationFrame(tick);
+  animId = requestAnimationFrame(tick);
 }
 
+let lastStepRow = -1;
 function tick(ts) {
   if (phase !== 'moving') return;
-
-  if (lastTs === null) lastTs = ts;
+  if (lastTs === null) { lastTs = ts; lastStepRow = -1; }
   const dt = ts - lastTs;
-  lastTs   = ts;
+  lastTs = ts;
 
-  // ms per row
-  const msPerRow = travelMs / ROWS;
-  rowProgress += dt / msPerRow;
+  elapsed += dt;
+  const frac = Math.min(elapsed / travelMs, 1);
+  const d = frac * totalLen;
+  const p = pointAtDistance(d);
+  renderSpiderAt(p.x, p.y);
 
-  while (rowProgress >= 1 && totalRows < ROWS) {
-    rowProgress -= 1;
-    // Check if spider crosses a bar at this row
-    const { gap } = bars[totalRows];
-    if (spiderCol === gap)     spiderCol = gap + 1;
-    else if (spiderCol === gap + 1) spiderCol = gap;
-    totalRows++;
-  }
+  // step blip as the spider passes each row
+  const curRow = Math.floor(p.y / ROW_H);
+  if (curRow !== lastStepRow && curRow < ROWS) { lastStepRow = curRow; sfxStep(); }
 
-  // Clamp rowProgress
-  const displayRow = Math.min(totalRows + rowProgress, ROWS);
-  spiderY = displayRow * ROW_H;
-  renderSpider();
-
-  if (totalRows >= ROWS && rowProgress >= 1 - 0.001) {
-    spiderY = ROWS * ROW_H;
-    renderSpider();
-    endRound();
-    return;
-  }
-
+  if (frac >= 1) { endRound(); return; }
   animId = requestAnimationFrame(tick);
 }
 
 function skipWait() {
   if (phase !== 'choose') return;
-  skipped = true;
   beginMoving();
 }
 
@@ -359,49 +473,81 @@ function endRound() {
   phase = 'result';
   cancelAnimationFrame(animId);
 
-  const safe    = window._safeCol;
-  const correct = selectedCol === safe;
-
+  const correct = selectedCol === safeCol;
   if (correct) {
     streak = Math.min(streak + 1, STREAK_MAX);
     const bonus = streak > 1 ? streak : 1;
     score += 100 * bonus;
     setMessage(`✓ Safe! +${100 * bonus} pts${streak > 1 ? ' (×' + bonus + ' streak)' : ''}`, 'correct');
+    sfxWin();
   } else {
     streak = 0;
-    setMessage(`✗ Crushed! Safe was column ${safe + 1}`, 'wrong');
+    lives--;
+    setMessage(`✗ Crushed! Safe was column ${safeCol + 1}. ${lives} ${lives === 1 ? 'life' : 'lives'} left.`, 'wrong');
+    sfxLose();
   }
 
+  saveHighScore();
   renderSelector();
   updateHud();
 
-  setTimeout(() => {
-    round++;
-    startRound();
-  }, 1800);
+  if (lives <= 0) {
+    resultTimer = setTimeout(gameOver, 1400);
+    return;
+  }
+  resultTimer = setTimeout(() => { round++; startRound(); }, 1600);
 }
 
-function setMessage(text, cls) {
-  messageEl.textContent = text;
-  messageEl.className   = cls || '';
+function gameOver() {
+  phase = 'gameover';
+  saveHighScore();
+  const isRecord = score >= highScore && score > 0;
+  ovTitle.textContent = '☠ Game Over';
+  ovTitle.style.color = '#ff4444';
+  ovSub.innerHTML = `You survived to round <b>${round}</b>.`;
+  ovScores.innerHTML = `Score <b>${score}</b> &nbsp;·&nbsp; Best <b>${highScore}</b>` +
+                       (isRecord ? '<br><span style="color:#66ff66">★ New best!</span>' : '');
+  ovCta.textContent = 'Press SPACE or TAP to retry';
+  overlay.classList.remove('hidden');
+  setMessage('Game over', 'wrong');
+  sfxOver();
 }
 
-// ─── Input ────────────────────────────────────────────────────────────────────
+// ─── Input ──────────────────────────────────────────────────────────────────────
+function moveSelector(dir) {
+  selectedCol = (selectedCol + dir + COLS) % COLS;
+  renderSelector();
+}
+
 document.addEventListener('keydown', e => {
-  if (e.key === 'ArrowLeft') {
-    selectedCol = (selectedCol - 1 + COLS) % COLS;
-    renderSelector();
-  } else if (e.key === 'ArrowRight') {
-    selectedCol = (selectedCol + 1) % COLS;
-    renderSelector();
-  } else if (e.key === ' ') {
+  if (e.key === 'ArrowLeft')  { if (phase === 'choose') moveSelector(-1); }
+  else if (e.key === 'ArrowRight') { if (phase === 'choose') moveSelector(1); }
+  else if (e.key === ' ' || e.key === 'Enter') {
     e.preventDefault();
-    skipWait();
+    ensureAudio();
+    if (phase === 'start' || phase === 'gameover') startGame();
+    else if (phase === 'choose') skipWait();
   }
 });
 
+// Touch / click on the arena
+arena.addEventListener('pointerdown', e => {
+  ensureAudio();
+  if (phase === 'start' || phase === 'gameover') { startGame(); return; }
+  if (phase !== 'choose') return;
+  const rect = arena.getBoundingClientRect();
+  const localX = (e.clientX - rect.left) * (COL_W * COLS / rect.width);
+  const col = Math.max(0, Math.min(COLS - 1, Math.floor(localX / COL_W)));
+  if (col === selectedCol) { skipWait(); }   // tap chosen column again to resolve
+  else { selectedCol = col; renderSelector(); }
+});
+
+muteBtn.addEventListener('click', () => {
+  muted = !muted;
+  muteBtn.textContent = muted ? '🔇 OFF' : '🔊 ON';
+});
+
 // ─── Boot ─────────────────────────────────────────────────────────────────────
-// Add col labels
 for (let c = 0; c < COLS; c++) {
   const lbl = document.createElement('div');
   lbl.className = 'col-label';
@@ -410,7 +556,11 @@ for (let c = 0; c < COLS; c++) {
   arena.appendChild(lbl);
 }
 
-startRound();
+loadHighScore();
+round = 1; score = 0; streak = 0; lives = START_LIVES; selectedCol = 0;
+updateHud();
+ovScores.innerHTML = highScore > 0 ? `Best <b>${highScore}</b>` : '';
+renderSpiderAt(colX(0), 0);
 </script>
 </body>
 </html>
