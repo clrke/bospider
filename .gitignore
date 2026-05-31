@@ -1,1 +1,3 @@
 .saint-expeditus/
+node_modules/
+coverage/

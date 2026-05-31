@@ -50,7 +50,32 @@ Identify the safe column before the spider lands. Either **wait it out** or pres
 
 ## Tech
 
-- Single-page web game (`index.html`). No build step, no dependencies.
+- Single-page web game (`index.html`). **No framework, no build step, no runtime dependencies** — just open the file.
+- The pure game logic (difficulty curve, bar/path generation, safe-column simulation,
+  scoring) lives in `src/logic.js` as a UMD module. It loads as a plain `<script>` in
+  the browser **and** imports cleanly into Node — so it's unit-testable without a build.
+
+## Testing
+
+```bash
+npm install      # one-time: installs Vitest (dev only)
+npm test         # run the unit suite
+npm run test:watch
+npm run coverage
+```
+
+- **Unit tests** (`tests/logic.test.js`, [Vitest](https://vitest.dev)) cover the pure
+  logic: difficulty curve monotonicity/floor, deterministic seeded board generation,
+  spider-path geometry, arc-length parametrization, and scoring/streak transitions —
+  including a property test cross-checking `buildPath` against an independent simulation
+  over hundreds of random boards.
+- **End-to-end** behavior (input, animation, lives, overlays) is verified with headless
+  Playwright against the real `index.html` over `file://`.
+
+> **Why no framework?** The game is ~12 KB and its tricky parts are pure functions, so a
+> component framework (React/Vue/Svelte) would add a build step and runtime weight without
+> improving testability. Isolating the logic into a plain module gives high coverage with
+> zero framework overhead.
 
 ## License
 

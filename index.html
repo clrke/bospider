@@ -222,19 +222,12 @@
 
 <div id="streak-bar" aria-hidden="true"></div>
 
+<script src="src/logic.js"></script>
 <script>
-// ─── Constants ────────────────────────────────────────────────────────────────
-const COLS        = 4;
-const ROWS        = 8;
-const COL_W       = 80;    // px
-const ROW_H       = 60;    // px  (arena height 480 / 8)
-const ARENA_H     = 480;
-const PAUSE_MS    = 2000;  // pre-movement pause
-const BASE_MS     = 3000;  // travel time at round 1
-const MIN_MS      = 400;   // floor travel time
-const STREAK_MAX  = 5;
-const START_LIVES = 3;
-const HS_KEY      = 'bospider_highscore';
+// ─── Constants (shared with the unit-tested logic module) ───────────────────────
+const L = window.BospiderLogic;
+const { COLS, ROWS, COL_W, ROW_H, ARENA_H, PAUSE_MS, BASE_MS, MIN_MS, STREAK_MAX, START_LIVES } = L.CONST;
+const HS_KEY = 'bospider_highscore';
 
 // ─── State ───────────────────────────────────────────────────────────────────
 let round, score, streak, lives, selectedCol, spawnCol;
@@ -297,14 +290,10 @@ function sfxWin()   { beep(660, 0.09, 'triangle', 0.09); setTimeout(() => beep(9
 function sfxLose()  { beep(140, 0.25, 'sawtooth', 0.10); }
 function sfxOver()  { beep(200, 0.2, 'sawtooth', 0.1); setTimeout(() => beep(120, 0.4, 'sawtooth', 0.1), 160); }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-function colX(c) { return c * COL_W + COL_W / 2; }
-
-function travelMsForRound(r) {
-  const t = BASE_MS / Math.log2(r + 1) + MIN_MS;
-  return Math.max(MIN_MS, t);
-}
-function rowsPerSecond() { return ROWS / (travelMs / 1000); }
+// ─── Helpers (logic delegated to the tested module) ─────────────────────────────
+const colX = L.colX;
+const travelMsForRound = L.travelMsForRound;
+function rowsPerSecond() { return L.rowsPerSecond(travelMs); }
 
 function loadHighScore() {
   try { highScore = parseInt(localStorage.getItem(HS_KEY), 10) || 0; }
@@ -333,57 +322,29 @@ function renderLives() {
 // ─── Build round: bars, spider path (with lateral tracing) ─────────────────────
 function generateRound() {
   arena.querySelectorAll('.bar').forEach(b => b.remove());
-  bars = [];
 
   spawnCol = Math.floor(Math.random() * COLS);
+  bars = L.generateBars();
 
-  for (let row = 0; row < ROWS; row++) {
-    const gap = Math.floor(Math.random() * (COLS - 1)); // gap g connects col g & g+1
-    bars.push({ row, gap });
-
+  // Render the bars.
+  bars.forEach(({ row, gap }) => {
     const barEl = document.createElement('div');
     barEl.className = 'bar';
     barEl.style.left = (gap * COL_W + COL_W) + 'px';
     barEl.style.top  = (row * ROW_H + ROW_H / 2 - 3) + 'px';
     arena.appendChild(barEl);
-  }
+  });
 
-  // Build the actual traced polyline path the spider follows.
-  let col = spawnCol;
-  path = [{ x: colX(col), y: 0 }];
-  for (let row = 0; row < ROWS; row++) {
-    const barY = row * ROW_H + ROW_H / 2;
-    const { gap } = bars[row];
-    // descend to the bar's height in current column
-    path.push({ x: colX(col), y: barY });
-    // if adjacent to this row's bar, trace across to the other column
-    if (col === gap)            { col = gap + 1; path.push({ x: colX(col), y: barY }); }
-    else if (col === gap + 1)   { col = gap;     path.push({ x: colX(col), y: barY }); }
-  }
-  path.push({ x: colX(col), y: ARENA_H });   // final descent to the floor
-  safeCol = col;
-
-  // Cumulative arc-length parametrization
-  segLen = [0];
-  totalLen = 0;
-  for (let i = 1; i < path.length; i++) {
-    const dx = path[i].x - path[i - 1].x;
-    const dy = path[i].y - path[i - 1].y;
-    totalLen += Math.hypot(dx, dy);
-    segLen.push(totalLen);
-  }
+  // Build the traced polyline + arc-length + safe column (pure, unit-tested).
+  const built = L.buildPath(spawnCol, bars);
+  path = built.path;
+  segLen = built.segLen;
+  totalLen = built.totalLen;
+  safeCol = built.safeCol;
 }
 
 function pointAtDistance(d) {
-  if (d <= 0) return path[0];
-  if (d >= totalLen) return path[path.length - 1];
-  let i = 1;
-  while (i < segLen.length && segLen[i] < d) i++;
-  const t = (d - segLen[i - 1]) / (segLen[i] - segLen[i - 1] || 1);
-  return {
-    x: path[i - 1].x + (path[i].x - path[i - 1].x) * t,
-    y: path[i - 1].y + (path[i].y - path[i - 1].y) * t,
-  };
+  return L.pointAtDistance(path, segLen, totalLen, d);
 }
 
 // ─── Render ────────────────────────────────────────────────────────────────────
@@ -474,14 +435,14 @@ function endRound() {
   cancelAnimationFrame(animId);
 
   const correct = selectedCol === safeCol;
+  const result = L.scoreForResult(correct, streak);
+  streak = result.streak;
   if (correct) {
-    streak = Math.min(streak + 1, STREAK_MAX);
-    const bonus = streak > 1 ? streak : 1;
-    score += 100 * bonus;
-    setMessage(`✓ Safe! +${100 * bonus} pts${streak > 1 ? ' (×' + bonus + ' streak)' : ''}`, 'correct');
+    score += result.gained;
+    const bonus = result.gained / 100;
+    setMessage(`✓ Safe! +${result.gained} pts${bonus > 1 ? ' (×' + bonus + ' streak)' : ''}`, 'correct');
     sfxWin();
   } else {
-    streak = 0;
     lives--;
     setMessage(`✗ Crushed! Safe was column ${safeCol + 1}. ${lives} ${lives === 1 ? 'life' : 'lives'} left.`, 'wrong');
     sfxLose();

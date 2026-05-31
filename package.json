@@ -1,0 +1,17 @@
+{
+  "name": "bospider",
+  "version": "1.0.0",
+  "description": "A fast-paced reflex game inspired by the Bospider boss from Mega Man X.",
+  "license": "MIT",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "serve": "npx --yes serve ."
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  }
+}
