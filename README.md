@@ -31,9 +31,11 @@ column where the spider will land — and survive, round after round, faster and
 
 | Input | Action |
 |-------|--------|
-| **← / →** | Select a column |
-| **Space / Enter** | Start, skip the wait, or retry |
-| **Tap a column** | (Mobile) select it; tap it again to resolve immediately |
+| **← / →** | Select a column (desktop) |
+| **Space / Enter** | Start, skip the wait, or retry (desktop) |
+| **Swipe ← / →** | Move one column (mobile) |
+| **Swipe ↓** | Skip the wait and resolve (mobile) |
+| **Tap** | Start / retry on the menu screens (mobile) |
 
 ## Features
 

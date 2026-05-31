@@ -60,6 +60,7 @@
       border-radius: 4px;
       overflow: hidden;
       cursor: pointer;
+      touch-action: none;   /* capture swipes; don't scroll the page */
     }
 
     .col-guide {
@@ -194,7 +195,7 @@
 <button id="mute" aria-label="Toggle sound">🔊 ON</button>
 
 <h1>⛧ Bospider</h1>
-<div id="info">← → select column &nbsp;|&nbsp; SPACE skip wait &nbsp;|&nbsp; tap a column on mobile</div>
+<div id="info">← → select &nbsp;|&nbsp; SPACE skip &nbsp;|&nbsp; mobile: swipe ← → to move, ↓ to skip</div>
 
 <div id="arena" role="application" aria-label="Bospider game board">
   <div class="col-selector" id="selector"></div>
@@ -491,17 +492,40 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// Touch / click on the arena
+// ── Touch / pointer: swipe ← → to move, ↓ to skip; tap to start/retry ──────────
+const SWIPE_MIN = 24;   // px before a drag counts as a swipe
+let swipeStart = null;
+
 arena.addEventListener('pointerdown', e => {
   ensureAudio();
+  swipeStart = { x: e.clientX, y: e.clientY };
+  if (arena.setPointerCapture) { try { arena.setPointerCapture(e.pointerId); } catch (_) {} }
+});
+
+arena.addEventListener('pointerup', e => {
+  if (!swipeStart) return;
+  const dx = e.clientX - swipeStart.x;
+  const dy = e.clientY - swipeStart.y;
+  swipeStart = null;
+  const adx = Math.abs(dx), ady = Math.abs(dy);
+
+  // Tap (no real movement): start or retry.
+  if (adx < SWIPE_MIN && ady < SWIPE_MIN) {
+    if (phase === 'start' || phase === 'gameover') startGame();
+    return;
+  }
+  // A swipe on a menu screen also just starts.
   if (phase === 'start' || phase === 'gameover') { startGame(); return; }
   if (phase !== 'choose') return;
-  const rect = arena.getBoundingClientRect();
-  const localX = (e.clientX - rect.left) * (COL_W * COLS / rect.width);
-  const col = Math.max(0, Math.min(COLS - 1, Math.floor(localX / COL_W)));
-  if (col === selectedCol) { skipWait(); }   // tap chosen column again to resolve
-  else { selectedCol = col; renderSelector(); }
+
+  if (adx > ady) {
+    moveSelector(dx > 0 ? 1 : -1);   // horizontal swipe → move one column
+  } else if (dy > 0) {
+    skipWait();                      // swipe down → skip the wait
+  }
 });
+
+arena.addEventListener('pointercancel', () => { swipeStart = null; });
 
 muteBtn.addEventListener('click', () => {
   muted = !muted;
