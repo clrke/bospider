@@ -331,7 +331,9 @@ function generateRound() {
   bars.forEach(({ row, gap }) => {
     const barEl = document.createElement('div');
     barEl.className = 'bar';
-    barEl.style.left = (gap * COL_W + COL_W) + 'px';
+    // Bar bridges columns `gap` and `gap+1`; center it on their shared boundary so it
+    // lines up exactly with the spider's lateral trace (center-to-center of the two cols).
+    barEl.style.left = (gap * COL_W + COL_W / 2) + 'px';
     barEl.style.top  = (row * ROW_H + ROW_H / 2 - 3) + 'px';
     arena.appendChild(barEl);
   });
@@ -476,14 +478,18 @@ function gameOver() {
 }
 
 // ─── Input ──────────────────────────────────────────────────────────────────────
+// The player can re-aim while choosing AND while the spider is still crawling;
+// the landing column is judged at the moment the spider reaches the floor.
+function canMove() { return phase === 'choose' || phase === 'moving'; }
 function moveSelector(dir) {
+  if (!canMove()) return;
   selectedCol = (selectedCol + dir + COLS) % COLS;
   renderSelector();
 }
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'ArrowLeft')  { if (phase === 'choose') moveSelector(-1); }
-  else if (e.key === 'ArrowRight') { if (phase === 'choose') moveSelector(1); }
+  if (e.key === 'ArrowLeft')  { if (canMove()) moveSelector(-1); }
+  else if (e.key === 'ArrowRight') { if (canMove()) moveSelector(1); }
   else if (e.key === ' ' || e.key === 'Enter') {
     e.preventDefault();
     ensureAudio();
@@ -516,12 +522,11 @@ arena.addEventListener('pointerup', e => {
   }
   // A swipe on a menu screen also just starts.
   if (phase === 'start' || phase === 'gameover') { startGame(); return; }
-  if (phase !== 'choose') return;
 
   if (adx > ady) {
-    moveSelector(dx > 0 ? 1 : -1);   // horizontal swipe → move one column
-  } else if (dy > 0) {
-    skipWait();                      // swipe down → skip the wait
+    if (canMove()) moveSelector(dx > 0 ? 1 : -1);   // horizontal swipe → move (even while crawling)
+  } else if (dy > 0 && phase === 'choose') {
+    skipWait();                                     // swipe down → skip the wait
   }
 });
 
