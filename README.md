@@ -32,9 +32,9 @@ column where the spider will land — and survive, round after round, faster and
 | Input | Action |
 |-------|--------|
 | **← / →** | Select a column (desktop) |
-| **Space / Enter** | Start, skip the wait, or retry (desktop) |
+| **Space / Enter** | Start, resolve the round instantly, or retry (desktop) |
 | **Swipe ← / →** | Move one column (mobile) |
-| **Swipe ↓** | Skip the wait and resolve (mobile) |
+| **Swipe ↓** | Resolve the round instantly — skips the pause *and* the descent (mobile) |
 | **Tap** | Start / retry on the menu screens (mobile) |
 
 ## Features
@@ -47,8 +47,8 @@ column where the spider will land — and survive, round after round, faster and
 
 ## Goal
 
-Identify the safe column before the spider lands. Either **wait it out** or press
-**Space** to skip the timer once you're confident.
+Identify the safe column before the spider lands. Either **watch it descend** or, once
+you're confident, press **Space** / **swipe down** to resolve the round instantly.
 
 ## Tech
 

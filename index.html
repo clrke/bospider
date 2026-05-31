@@ -432,9 +432,14 @@ function tick(ts) {
   animId = requestAnimationFrame(tick);
 }
 
+// Skip resolves the round immediately — no pause, no descent animation.
 function skipWait() {
   if (phase !== 'choose') return;
-  beginMoving();
+  clearTimeout(pauseTimer);
+  cancelAnimationFrame(animId);
+  const end = path[path.length - 1];   // snap the spider to its landing spot
+  renderSpiderAt(end.x, end.y);
+  endRound();
 }
 
 function endRound() {
