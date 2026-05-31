@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bospider</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0a0a0f;
+      color: #e0e0e0;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      user-select: none;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      letter-spacing: 0.2em;
+      color: #ff4444;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+
+    #info {
+      font-size: 0.75rem;
+      color: #666;
+      margin-bottom: 20px;
+      letter-spacing: 0.05em;
+    }
+
+    #arena {
+      position: relative;
+      width: 320px;
+      height: 480px;
+      background: #0f0f1a;
+      border: 2px solid #222;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    /* Column guides (subtle) */
+    .col-guide {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: #1a1a2e;
+    }
+
+    /* Column selector highlight */
+    .col-selector {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 80px;
+      background: rgba(255, 255, 100, 0.04);
+      border-left: 1px solid rgba(255,255,100,0.1);
+      border-right: 1px solid rgba(255,255,100,0.1);
+      transition: left 0.08s ease;
+      pointer-events: none;
+    }
+
+    .col-selector.safe  { background: rgba(100, 255, 100, 0.07); border-color: rgba(100,255,100,0.25); }
+    .col-selector.danger{ background: rgba(255,  60,  60, 0.07); border-color: rgba(255,60,60,0.25); }
+
+    /* Horizontal bars */
+    .bar {
+      position: absolute;
+      height: 6px;
+      width: 80px; /* spans one gap = col width */
+      background: #4488ff;
+      border-radius: 3px;
+      box-shadow: 0 0 8px #4488ff88;
+    }
+
+    /* Spider */
+    #spider {
+      position: absolute;
+      width: 36px;
+      height: 36px;
+      font-size: 28px;
+      text-align: center;
+      line-height: 36px;
+      transform: translateX(-50%);
+      transition: none;
+      z-index: 10;
+      filter: drop-shadow(0 0 6px #ff4444);
+    }
+
+    /* Column labels at bottom */
+    .col-label {
+      position: absolute;
+      bottom: 6px;
+      font-size: 0.65rem;
+      color: #444;
+      text-align: center;
+      width: 80px;
+    }
+
+    #hud {
+      margin-top: 16px;
+      display: flex;
+      gap: 32px;
+      align-items: center;
+    }
+
+    .stat { text-align: center; }
+    .stat .val { font-size: 1.5rem; color: #ffcc00; font-weight: bold; }
+    .stat .lbl { font-size: 0.65rem; color: #555; text-transform: uppercase; letter-spacing: 0.1em; }
+
+    #message {
+      margin-top: 14px;
+      font-size: 0.85rem;
+      color: #aaa;
+      letter-spacing: 0.05em;
+      min-height: 1.2em;
+      text-align: center;
+    }
+
+    #message.correct { color: #66ff66; }
+    #message.wrong   { color: #ff4444; }
+    #message.hint    { color: #ffcc00; }
+
+    #streak-bar {
+      margin-top: 8px;
+      display: flex;
+      gap: 4px;
+    }
+
+    .streak-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #222;
+      border: 1px solid #333;
+      transition: background 0.2s;
+    }
+    .streak-dot.on { background: #ffcc00; border-color: #ffcc00; }
+  </style>
+</head>
+<body>
+
+<h1>⛧ Bospider</h1>
+<div id="info">← → select column &nbsp;|&nbsp; SPACE skip wait</div>
+
+<div id="arena">
+  <div class="col-selector" id="selector"></div>
+  <!-- bars injected here -->
+  <div id="spider">🕷</div>
+  <!-- col labels -->
+</div>
+
+<div id="hud">
+  <div class="stat"><div class="val" id="round-val">1</div><div class="lbl">Round</div></div>
+  <div class="stat"><div class="val" id="score-val">0</div><div class="lbl">Score</div></div>
+  <div class="stat"><div class="val" id="speed-val">—</div><div class="lbl">Speed</div></div>
+</div>
+
+<div id="message">Choose your column!</div>
+
+<div id="streak-bar">
+  <!-- dots injected -->
+</div>
+
+<script>
+// ─── Constants ────────────────────────────────────────────────────────────────
+const COLS        = 4;
+const ROWS        = 8;
+const COL_W       = 80;    // px
+const ROW_H       = 60;    // px  (arena height 480 / 8)
+const ARENA_H     = 480;
+const PAUSE_MS    = 2000;  // pre-movement pause
+const BASE_MS     = 3000;  // travel time at round 1
+const MIN_MS      = 400;   // floor travel time
+const STREAK_MAX  = 5;
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let round         = 1;
+let score         = 0;
+let streak        = 0;
+let selectedCol   = 0;   // 0-indexed
+let spiderCol     = 0;
+let spiderY       = 0;   // px from top
+let bars          = [];  // [{row, gap}]  gap = 0-2 (between cols 0-1, 1-2, 2-3)
+let phase         = 'choose';  // choose | pause | moving | result
+let animId        = null;
+let roundStarted  = false;
+let lastTs        = null;
+let travelMs      = BASE_MS;
+let totalRows     = 0;   // rows traversed so far this round
+let rowProgress   = 0;   // 0..1 progress within current row
+let skipped       = false;
+
+// ─── DOM refs ────────────────────────────────────────────────────────────────
+const arena      = document.getElementById('arena');
+const spiderEl   = document.getElementById('spider');
+const selector   = document.getElementById('selector');
+const roundVal   = document.getElementById('round-val');
+const scoreVal   = document.getElementById('score-val');
+const speedVal   = document.getElementById('speed-val');
+const messageEl  = document.getElementById('message');
+const streakBar  = document.getElementById('streak-bar');
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function colX(c) { return c * COL_W + COL_W / 2; }   // center px
+
+function travelMsForRound(r) {
+  // Logarithmic reduction: t(r) = BASE / log2(r + 1) + MIN
+  const t = BASE_MS / Math.log2(r + 1) + MIN_MS;
+  return Math.max(MIN_MS, t);
+}
+
+function rowsPerSecond() {
+  return ROWS / (travelMs / 1000);
+}
+
+// ─── Setup streak display ─────────────────────────────────────────────────────
+function buildStreakBar() {
+  streakBar.innerHTML = '';
+  for (let i = 0; i < STREAK_MAX; i++) {
+    const d = document.createElement('div');
+    d.className = 'streak-dot' + (i < streak ? ' on' : '');
+    streakBar.appendChild(d);
+  }
+}
+
+// ─── Generate round ──────────────────────────────────────────────────────────
+function generateRound() {
+  // Clear old bars
+  arena.querySelectorAll('.bar').forEach(b => b.remove());
+  bars = [];
+
+  // Spawn spider at random column top
+  spiderCol = Math.floor(Math.random() * COLS);
+  spiderY   = 0;
+  rowProgress = 0;
+  totalRows   = 0;
+
+  // For each row, place a bar in one of the 3 gaps
+  // Bar at gap g connects col g and col g+1
+  for (let row = 0; row < ROWS; row++) {
+    const gap = Math.floor(Math.random() * (COLS - 1));
+    bars.push({ row, gap });
+
+    const barEl = document.createElement('div');
+    barEl.className = 'bar';
+    barEl.style.left  = (gap * COL_W + COL_W) + 'px';  // right edge of col gap
+    barEl.style.top   = (row * ROW_H + ROW_H / 2 - 3) + 'px';
+    arena.appendChild(barEl);
+  }
+
+  // Compute safe column(s)
+  // Simulate spider path
+  let col = spiderCol;
+  for (let row = 0; row < ROWS; row++) {
+    const { gap } = bars[row];
+    if (col === gap)     col = gap + 1;
+    else if (col === gap + 1) col = gap;
+  }
+  // col is now the landing column
+  window._safeCol = col;  // store for result check
+}
+
+// ─── Render spider position ──────────────────────────────────────────────────
+function renderSpider() {
+  spiderEl.style.left = colX(spiderCol) + 'px';
+  spiderEl.style.top  = (spiderY - 18) + 'px';
+}
+
+function renderSelector() {
+  selector.style.left = (selectedCol * COL_W) + 'px';
+  const safe = window._safeCol;
+  if (phase === 'result') {
+    selector.className = 'col-selector ' + (selectedCol === safe ? 'safe' : 'danger');
+  } else {
+    selector.className = 'col-selector';
+  }
+}
+
+function updateHud() {
+  roundVal.textContent = round;
+  scoreVal.textContent = score;
+  const rps = (rowsPerSecond()).toFixed(1);
+  speedVal.textContent = rps + '/s';
+  buildStreakBar();
+}
+
+// ─── Phases ──────────────────────────────────────────────────────────────────
+function startRound() {
+  phase = 'choose';
+  skipped = false;
+  travelMs = travelMsForRound(round);
+  generateRound();
+  renderSpider();
+  renderSelector();
+  updateHud();
+  setMessage('Choose your column!', '');
+
+  // After 2s pause, start moving
+  setTimeout(() => {
+    if (phase === 'choose') beginMoving();
+  }, PAUSE_MS);
+}
+
+function beginMoving() {
+  phase   = 'moving';
+  lastTs  = null;
+  setMessage('↓ descending…', 'hint');
+  animId  = requestAnimationFrame(tick);
+}
+
+function tick(ts) {
+  if (phase !== 'moving') return;
+
+  if (lastTs === null) lastTs = ts;
+  const dt = ts - lastTs;
+  lastTs   = ts;
+
+  // ms per row
+  const msPerRow = travelMs / ROWS;
+  rowProgress += dt / msPerRow;
+
+  while (rowProgress >= 1 && totalRows < ROWS) {
+    rowProgress -= 1;
+    // Check if spider crosses a bar at this row
+    const { gap } = bars[totalRows];
+    if (spiderCol === gap)     spiderCol = gap + 1;
+    else if (spiderCol === gap + 1) spiderCol = gap;
+    totalRows++;
+  }
+
+  // Clamp rowProgress
+  const displayRow = Math.min(totalRows + rowProgress, ROWS);
+  spiderY = displayRow * ROW_H;
+  renderSpider();
+
+  if (totalRows >= ROWS && rowProgress >= 1 - 0.001) {
+    spiderY = ROWS * ROW_H;
+    renderSpider();
+    endRound();
+    return;
+  }
+
+  animId = requestAnimationFrame(tick);
+}
+
+function skipWait() {
+  if (phase !== 'choose') return;
+  skipped = true;
+  beginMoving();
+}
+
+function endRound() {
+  phase = 'result';
+  cancelAnimationFrame(animId);
+
+  const safe    = window._safeCol;
+  const correct = selectedCol === safe;
+
+  if (correct) {
+    streak = Math.min(streak + 1, STREAK_MAX);
+    const bonus = streak > 1 ? streak : 1;
+    score += 100 * bonus;
+    setMessage(`✓ Safe! +${100 * bonus} pts${streak > 1 ? ' (×' + bonus + ' streak)' : ''}`, 'correct');
+  } else {
+    streak = 0;
+    setMessage(`✗ Crushed! Safe was column ${safe + 1}`, 'wrong');
+  }
+
+  renderSelector();
+  updateHud();
+
+  setTimeout(() => {
+    round++;
+    startRound();
+  }, 1800);
+}
+
+function setMessage(text, cls) {
+  messageEl.textContent = text;
+  messageEl.className   = cls || '';
+}
+
+// ─── Input ────────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft') {
+    selectedCol = (selectedCol - 1 + COLS) % COLS;
+    renderSelector();
+  } else if (e.key === 'ArrowRight') {
+    selectedCol = (selectedCol + 1) % COLS;
+    renderSelector();
+  } else if (e.key === ' ') {
+    e.preventDefault();
+    skipWait();
+  }
+});
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+// Add col labels
+for (let c = 0; c < COLS; c++) {
+  const lbl = document.createElement('div');
+  lbl.className = 'col-label';
+  lbl.style.left = (c * COL_W) + 'px';
+  lbl.textContent = c + 1;
+  arena.appendChild(lbl);
+}
+
+startRound();
+</script>
+</body>
+</html>
