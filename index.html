@@ -106,7 +106,7 @@
       font-size: 28px;
       text-align: center;
       line-height: 36px;
-      transform: translateX(-50%);
+      transform: translateX(-50%) rotate(180deg);   /* face downward as it descends */
       transition: none;
       z-index: 10;
       filter: drop-shadow(0 0 6px #ff4444);
@@ -432,9 +432,9 @@ function tick(ts) {
   animId = requestAnimationFrame(tick);
 }
 
-// Skip resolves the round immediately — no pause, no descent animation.
+// Skip resolves the round immediately — works while choosing OR mid-descent.
 function skipWait() {
-  if (phase !== 'choose') return;
+  if (phase !== 'choose' && phase !== 'moving') return;
   clearTimeout(pauseTimer);
   cancelAnimationFrame(animId);
   const end = path[path.length - 1];   // snap the spider to its landing spot
@@ -503,7 +503,7 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
     ensureAudio();
     if (phase === 'start' || phase === 'gameover') startGame();
-    else if (phase === 'choose') skipWait();
+    else skipWait();   // choose or moving → resolve now
   }
 });
 
@@ -534,8 +534,8 @@ arena.addEventListener('pointerup', e => {
 
   if (adx > ady) {
     if (canMove()) moveSelector(dx > 0 ? 1 : -1);   // horizontal swipe → move (even while crawling)
-  } else if (dy > 0 && phase === 'choose') {
-    skipWait();                                     // swipe down → skip the wait
+  } else if (dy > 0) {
+    skipWait();                                     // swipe down → resolve now (choose or mid-descent)
   }
 });
 
