@@ -234,7 +234,7 @@
 <button id="mute" aria-label="Toggle sound">🔊 ON</button>
 
 <h1>⛧ Bospider</h1>
-<div id="info">← → select &nbsp;|&nbsp; SPACE skip &nbsp;|&nbsp; mobile: swipe ← → to move, ↓ to skip</div>
+<div id="info">← → select &nbsp;|&nbsp; ↓ / SPACE skip &nbsp;|&nbsp; mobile: swipe ← → to move, ↓ to skip</div>
 
 <div id="arena" role="application" aria-label="Bospider game board">
   <div class="col-selector" id="selector"></div>
@@ -534,6 +534,7 @@ function moveSelector(dir) {
 document.addEventListener('keydown', e => {
   if (e.key === 'ArrowLeft')  { if (canMove()) moveSelector(-1); }
   else if (e.key === 'ArrowRight') { if (canMove()) moveSelector(1); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); skipWait(); }   // ↓ skips, like swipe-down
   else if (e.key === ' ' || e.key === 'Enter') {
     e.preventDefault();
     ensureAudio();

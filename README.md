@@ -32,6 +32,7 @@ column where the spider will land — and survive, round after round, faster and
 | Input | Action |
 |-------|--------|
 | **← / →** | Select a column (desktop) |
+| **↓** | Resolve the round instantly (desktop) |
 | **Space / Enter** | Start, resolve the round instantly, or retry (desktop) |
 | **Swipe ← / →** | Move one column (mobile) |
 | **Swipe ↓** | Resolve the round instantly — skips the pause *and* the descent (mobile) |
