@@ -2,7 +2,7 @@
 
 A fast-paced reflex game inspired by the **Bospider** boss fight from *Mega Man X*.
 
-▶ **Play:** open `index.html` in any modern browser (desktop or mobile).
+▶ **Play now:** **[clrke.github.io/bospider](https://clrke.github.io/bospider/)** — or open `index.html` locally in any modern browser (desktop or mobile).
 
 ## Concept
 
