@@ -134,6 +134,21 @@
       box-shadow: 0 0 8px #4488ff88;
     }
 
+    /* Green glow tracing the spider's actual descent path (shown once it lands) */
+    .path-trace {
+      position: absolute;
+      height: 4px;
+      background: #44ff88;
+      border-radius: 2px;
+      box-shadow: 0 0 6px #44ff88, 0 0 14px #44ff8866;
+      transform-origin: 0 50%;
+      pointer-events: none;
+      z-index: 5;
+      opacity: 0;
+      animation: traceIn 0.25s ease forwards;
+    }
+    @keyframes traceIn { from { opacity: 0; } to { opacity: 1; } }
+
     #spider {
       position: absolute;
       width: 36px;
@@ -361,7 +376,7 @@ function renderLives() {
 
 // ─── Build round: bars, spider path (with lateral tracing) ─────────────────────
 function generateRound() {
-  arena.querySelectorAll('.bar').forEach(b => b.remove());
+  arena.querySelectorAll('.bar, .path-trace').forEach(b => b.remove());
 
   spawnCol = Math.floor(Math.random() * COLS);
   bars = L.generateBars();
@@ -387,6 +402,26 @@ function generateRound() {
 
 function pointAtDistance(d) {
   return L.pointAtDistance(path, segLen, totalLen, d);
+}
+
+// Draw a green-glowing polyline over the spider's actual descent path.
+function drawPathTrace() {
+  arena.querySelectorAll('.path-trace').forEach(s => s.remove());
+  for (let i = 0; i < path.length - 1; i++) {
+    const a = path[i], b = path[i + 1];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 0.5) continue;
+    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+    const seg = document.createElement('div');
+    seg.className = 'path-trace';
+    seg.style.left = a.x + 'px';
+    seg.style.top  = (a.y - 2) + 'px';   // center the 4px line on the path
+    seg.style.width = len + 'px';
+    seg.style.transform = 'rotate(' + angle + 'deg)';
+    seg.style.animationDelay = (i * 0.03) + 's';   // draw on, segment by segment
+    arena.appendChild(seg);
+  }
 }
 
 // ─── Render ────────────────────────────────────────────────────────────────────
@@ -480,6 +515,7 @@ function skipWait() {
 function endRound() {
   phase = 'result';
   cancelAnimationFrame(animId);
+  drawPathTrace();   // reveal the spider's route with a green glow
 
   const correct = selectedCol === safeCol;
   const result = L.scoreForResult(correct, streak);

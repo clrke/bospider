@@ -43,6 +43,7 @@ column where the spider will land — and survive, round after round, faster and
 - Lives, streak multiplier, and **Game Over / restart** flow.
 - **High score** persisted locally (`localStorage`).
 - Animated spider that **traces along bars** as it descends.
+- On landing, the spider's route is revealed with a **green glowing trail**.
 - WebAudio sound effects (toggle with the 🔊 button).
 - Touch controls and accessible status messaging.
 
