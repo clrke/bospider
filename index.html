@@ -134,7 +134,8 @@
       box-shadow: 0 0 8px #4488ff88;
     }
 
-    /* Green glow tracing the spider's actual descent path (shown once it lands) */
+    /* Glow tracing the spider's actual descent path (shown once it lands).
+       Green when you guessed right, red when you were crushed. */
     .path-trace {
       position: absolute;
       height: 4px;
@@ -146,6 +147,10 @@
       z-index: 5;
       opacity: 0;
       animation: traceIn 0.25s ease forwards;
+    }
+    .path-trace.wrong {
+      background: #ff5555;
+      box-shadow: 0 0 6px #ff5555, 0 0 14px #ff555566;
     }
     @keyframes traceIn { from { opacity: 0; } to { opacity: 1; } }
 
@@ -404,8 +409,9 @@ function pointAtDistance(d) {
   return L.pointAtDistance(path, segLen, totalLen, d);
 }
 
-// Draw a green-glowing polyline over the spider's actual descent path.
-function drawPathTrace() {
+// Draw a glowing polyline over the spider's actual descent path.
+// Green if the player guessed right; red (`wrong`) if they were crushed.
+function drawPathTrace(wrong) {
   arena.querySelectorAll('.path-trace').forEach(s => s.remove());
   for (let i = 0; i < path.length - 1; i++) {
     const a = path[i], b = path[i + 1];
@@ -414,7 +420,7 @@ function drawPathTrace() {
     if (len < 0.5) continue;
     const angle = Math.atan2(dy, dx) * 180 / Math.PI;
     const seg = document.createElement('div');
-    seg.className = 'path-trace';
+    seg.className = 'path-trace' + (wrong ? ' wrong' : '');
     seg.style.left = a.x + 'px';
     seg.style.top  = (a.y - 2) + 'px';   // center the 4px line on the path
     seg.style.width = len + 'px';
@@ -515,9 +521,10 @@ function skipWait() {
 function endRound() {
   phase = 'result';
   cancelAnimationFrame(animId);
-  drawPathTrace();   // reveal the spider's route with a green glow
 
   const correct = selectedCol === safeCol;
+  drawPathTrace(!correct);   // reveal the spider's route — green if right, red if crushed
+
   const result = L.scoreForResult(correct, streak);
   streak = result.streak;
   if (correct) {
